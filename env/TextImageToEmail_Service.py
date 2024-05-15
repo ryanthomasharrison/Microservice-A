@@ -32,7 +32,7 @@ def send_email(sender_email, sender_password, recipient_email, email_subject, em
         server.sendmail(sender_email, recipient_email, mime_email.as_string())
     
     except Exception as error:
-        logging.error("Error occured while sending email: %s", error)
+        logging.error("Error occurred while sending email: %s", error)
         print(f"Error in sending: {error}")
     
     finally:
