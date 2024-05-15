@@ -84,5 +84,5 @@ error_test = "this is not a JSON file"
 # Send JSON to microservice
 # send_data_to_microservice(text_JSON) # Text
 # send_data_to_microservice(image_JSON) # Image
-send_data_to_microservice(error_test) # Error
+# send_data_to_microservice(error_test) # Error
 

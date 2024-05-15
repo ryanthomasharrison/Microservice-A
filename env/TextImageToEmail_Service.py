@@ -1,5 +1,4 @@
 import base64
-import json
 import zmq
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -85,8 +84,8 @@ while True:
         # Update JSON response
         logging.error("Error occurred while processing client request: %s", error)
         response["success"] = False
-        response["message"] = f"Error occurred while sending. Email not sent."
-        response["error"] = f"{type(error).__name__}:\n \t{str(error)}"
+        response["message"] = "Error occurred while sending. Email not sent."
+        response["error"] = f"{type(error).__name__}:\t{str(error)}"
 
     # Send response back to client
     socket.send_json(response)
