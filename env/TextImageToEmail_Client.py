@@ -41,21 +41,22 @@ def CreateJSONtoSend(data, data_type, subject, receiver_email, sender_email = No
 
 def send_data_to_microservice(json_payload):
     try:
-        # Set up socket and send data to microservice
+        # Set up socket
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
         socket.connect("tcp://localhost:5555")
+
+        # Send data to microservice
         socket.send(json_payload.encode("utf-8"))
+
+        # Receive response
         response = json.loads(socket.recv().decode("utf-8"))
         socket.close()
 
-        # Tell client program whether email was sent successfully or not
-        if response["success"] == True:
-            print("Success! Email was sent")
-            print("error: ", response["error"])
-        else:
-            print("Error - email did not send. Error message: ", response["error"])
-
+        # Print response
+        for key, value in response.items():
+            print(f"{key}: {value}")
+                  
     except Exception as error:
         print("Error: ", error)
 
@@ -78,6 +79,10 @@ text_JSON = CreateJSONtoSend(sample_text, "text", "test email - text", "ryanharr
 # # Convert image to JSON
 image_JSON = CreateJSONtoSend(sample_image, "image", "test email - image", "ryanharrison.cs361@gmail.com")
 
+error_test = "this is not a JSON file"
+
 # Send JSON to microservice
-# send_data_to_microservice(text_JSON)
-# send_data_to_microservice(image_JSON)
+# send_data_to_microservice(text_JSON) # Text
+# send_data_to_microservice(image_JSON) # Image
+send_data_to_microservice(error_test) # Error
+
