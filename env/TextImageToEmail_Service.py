@@ -1,40 +1,71 @@
 import base64
-import zmq
+import logging
 import smtplib
+import zmq
+from dataclasses import dataclass
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.text import MIMEText
-import logging
+from signal import signal, SIGINT, SIG_DFL
+
+default_email = "cs361.group55@gmail.com"
+default_password = "rddv jysq efqu wvaf"
+
+
+@dataclass
+class EmailPayload:
+    sender_email: str
+    sender_password: str
+    receiver_email: str
+    data: str
+    data_type: str
+    subject: str
+
+    def __post_init__(self):
+        # Use default email/password if not provided by client in payload
+        if self.sender_email is None or self.sender_password is None:
+            self.sender_email = default_email
+            self.sender_password = default_password
+
+        # Decode base64 if an image was provided
+        if self.data_type == "image":
+            self.data = base64.b64decode(self.data)
+
 
 # Set up error log
-logging.basicConfig(filename = "error.log", level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    filename="error.log",
+    level=logging.ERROR,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
-def send_email(sender_email, sender_password, recipient_email, email_subject, email_data, data_type):
+
+def send_email(ep: EmailPayload):
     try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        server.login(sender_email, sender_password)
+        server.login(ep.sender_email, ep.sender_password)
 
         mime_email = MIMEMultipart()
-        mime_email["From"] = sender_email
-        mime_email["To"] = recipient_email
-        mime_email["Subject"] = email_subject
+        mime_email["From"] = ep.sender_email
+        mime_email["To"] = ep.receiver_email
+        mime_email["Subject"] = ep.subject
 
-        if data_type == "image":
-            mime_attachment = MIMEImage(email_data)
-        elif data_type == "text":
-            mime_attachment = MIMEText(email_data)
+        if ep.data_type == "image":
+            mime_attachment = MIMEImage(ep.data)
+        elif ep.data_type == "text":
+            mime_attachment = MIMEText(ep.data)
         else:
             raise ValueError("Only text or image file types are supported")
 
         mime_attachment.add_header("Content-Disposition", "attachment")
         mime_email.attach(mime_attachment)
-        server.sendmail(sender_email, recipient_email, mime_email.as_string())
-    
+        server.sendmail(ep.sender_email, ep.receiver_email, mime_email.as_string())
+
     except Exception as error:
         logging.error("Error occurred while sending email: %s", error)
         print(f"Error in sending: {error}")
-    
+
     finally:
         server.quit()
 
@@ -45,40 +76,29 @@ socket = context.socket(zmq.REP)
 address = "tcp://*:5555"
 socket.bind(address)
 
+# exit if user sends SIGINT or ctrl+c
+signal(SIGINT, SIG_DFL)
+
 # Wait for client request
 while True:
     print("Listening on ", address)
-
 
     # Prepare response JSON
     response = {"success": None, "message": None, "error": None}
 
     try:
         json_payload = socket.recv_json()
-
-        # Extract data from json payload
-        sender_email = json_payload["sender_email"]
-        sender_password = json_payload["sender_password"]
-        data = json_payload["data"]
-        data_type = json_payload["data_type"]
-        receiver_email = json_payload["receiver_email"]
-        subject = json_payload["subject"]
-        
-        # Use default email/password if not provided by client in payload
-        if sender_email is None and sender_password is None:
-            sender_email = "cs361.group55@gmail.com"
-            sender_password = "rddv jysq efqu wvaf"
-
-        # Decode base64 if an image was provided
-        if data_type == "image":
-            data = base64.b64decode(data)
+        ep = EmailPayload(**json_payload)
 
         # Send email
-        send_email(sender_email, sender_password, receiver_email, subject, data, data_type)
-        
+        send_email(ep)
+
         # Update JSON response
         response["success"] = True
-        response["message"] = f"Email containing {data_type.upper()} with subject '{subject}' has been sent to {receiver_email}"
+        response["message"] = (
+            f"Email containing {ep.data_type.upper()} with subject '{ep.subject}"
+            f" has been sent to {ep.receiver_email}"
+        )
 
     except Exception as error:
         # Update JSON response
@@ -89,10 +109,3 @@ while True:
 
     # Send response back to client
     socket.send_json(response)
-
-    
-
-
-
-
-        
